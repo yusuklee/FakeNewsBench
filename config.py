@@ -23,9 +23,6 @@ COMMON = {
 }
 
 MODEL_DEFAULTS = {
-    "meanpool": {
-        "epochs": 3,
-    },
     "rec4mit": {
         "epochs": 15,
         "lr": 1e-3,

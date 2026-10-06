@@ -2,7 +2,6 @@
 import importlib
 
 REGISTRY = {
-    "meanpool": ("models.meanpool", "MeanPool"),
     "rec4mit": ("models.rec4mit", "Rec4Mit"),
     "hdint": ("models.hdint", "HDInt"),
     "prism": ("models.prism", "PRISM"),

@@ -24,8 +24,7 @@ FakeNewsBench/
 │   ├── base.py              공통 인터페이스 (compute_loss / score / stage hooks)
 │   ├── rec4mit.py           WWW'22  Rec4Mit
 │   ├── hdint.py             KDD'24  HDInt
-│   ├── prism.py             SIGIR'25 PRISM
-│   └── meanpool.py          파이프라인 점검용 베이스라인
+│   └── prism.py             SIGIR'25 PRISM
 ├── trainer.py               공통 학습 루프 (stage, val 평가, best 저장)
 ├── evaluate.py              PRISM 논문 지표, full-ranking
 ├── config.py                공통 하이퍼파라미터 + 모델별 기본값
