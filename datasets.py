@@ -20,19 +20,21 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
+from config import RAW_FILES
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_processed(dataset: str, root: str | None = None, need_tokens: bool = True) -> dict:
     d = os.path.join(root or os.path.join(HERE, "data", "processed"), dataset)
     meta = json.load(open(os.path.join(d, "meta.json")))
-    news = pd.read_csv(os.path.join(d, "news.csv"))
+    news = pd.read_csv(os.path.join(HERE, "data", RAW_FILES[dataset]), usecols=["label"])
     n = meta["num_news"]
     labels = torch.zeros(n + 1, dtype=torch.float)
     labels[1:] = torch.tensor(news["label"].values, dtype=torch.float)
     emb = torch.load(os.path.join(d, "news_emb.pt"))
     out = {
-        "name": dataset, "dir": d, "meta": meta, "news": news,
+        "name": dataset, "dir": d, "meta": meta,
         "num_news": n, "num_users": meta["num_users"],
         "labels": labels,                      # [N+1] 0 real / 1 fake
         "emb": emb,                            # {"title": [N+1,768], "description": [N+1,768]}

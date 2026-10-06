@@ -2,10 +2,9 @@
 
   python prepare_data.py --dataset gossip        # gossip / pol / pheme / ced / mcfend / all
 
-입력  : GitHub release v0.1.0 의 {dataset}.csv 를 바로 읽음 (로컬 저장 안 함)
+입력  : data/{dataset}.csv  (없으면 GitHub release v0.1.0 에서 받아 저장)
         컬럼 news_id, title, description, label(0 real / 1 fake), user_ids, user_times
 산출  : data/processed/{dataset}/
-        news.csv      idx(1..N), news_id, title, description, label
         news_emb.pt   {"title": [N+1,768], "description": [N+1,768]}  BERT CLS, row 0 = 패딩
         tokens.pt     {"title_ids","title_mask":[N+1,32], "desc_ids","desc_mask":[N+1,128]}
         train.json / val.json / test.json   [[ctx_ids], target_id, user_idx, target_time]
@@ -22,6 +21,7 @@ import argparse
 import ast
 import json
 import os
+import urllib.request
 from collections import defaultdict
 
 import pandas as pd
@@ -115,9 +115,11 @@ def encode(texts, tokenizer, model, max_len, device, batch=128):
 
 
 def process(dataset: str, out_dir: str, max_len: int, device: str):
-    raw = RAW_URL + RAW_FILES[dataset]
+    raw = os.path.join(HERE, "data", RAW_FILES[dataset])
     out = os.path.join(out_dir, dataset)
     os.makedirs(out, exist_ok=True)
+    if not os.path.exists(raw):
+        urllib.request.urlretrieve(RAW_URL + RAW_FILES[dataset], raw)
     print(f"[{dataset}] raw={raw}")
 
     df = load_raw(raw)
@@ -148,11 +150,6 @@ def process(dataset: str, out_dir: str, max_len: int, device: str):
     T = lib(train)
     unseen = {name: (len(lib(s) - T), len(lib(s))) for name, s in [("val", val), ("test", test)]}
     print(f"  unseen val={unseen['val'][0]}/{unseen['val'][1]} test={unseen['test'][0]}/{unseen['test'][1]}")
-
-    # ---- 뉴스 테이블
-    news = df[["news_id", "title", "description", "label"]].copy()
-    news.insert(0, "idx", range(1, n_news + 1))
-    news.to_csv(os.path.join(out, "news.csv"), index=False)
 
     # ---- BERT 임베딩 / 토큰
     from transformers import AutoModel, AutoTokenizer

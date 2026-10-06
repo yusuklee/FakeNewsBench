@@ -1,7 +1,7 @@
 # FakeNewsBench
 
-가짜뉴스 완화 뉴스추천 모델(Rec4Mit, HDInt, PRISM)을 **같은 데이터, 같은 전처리, 같은 평가**로 비교하는 벤치마크.
-NNR(https://github.com/Veason-silverbullet/NNR) 처럼 전처리·Dataset·학습 루프·평가를 공유하고 모델만 `--model`로 바꿔 돌린다.
+FAKE NEWS DETECTION MODELS (Rec4Mit, HDInt, PRISM)
+
 
 ```
 python prepare_data.py --dataset all   (all, gossip, pol, pheme, ced, mcfend 선택)
@@ -16,8 +16,9 @@ python main.py --model prism   --dataset gossip --test_only   # (학습은 이�
 ```
 FakeNewsBench/
 ├── data/
-│   └── processed/{dataset}/ prepare_data.py 산출물 — git 미포함
-├── prepare_data.py          전처리 (1회)
+│   ├── {dataset}.csv        입력 CSV (release 에서 받아 저장)
+│   └── processed/{dataset}/ 
+├── prepare_data.py          데이터 저장과 전처리
 ├── datasets.py              processed 로드 + 인스턴스 -> 배치 텐서 (모델 공통, 분기 없음)
 ├── models/
 │   ├── base.py              공통 인터페이스 (compute_loss / score / stage hooks)
@@ -34,41 +35,23 @@ FakeNewsBench/
 
 ## 입력 데이터
 
-https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0 의 `{dataset}.csv` 를 `prepare_data.py` 가 바로 읽는다 (로컬 저장 안 함). 컬럼은 5개 데이터셋 모두 동일.
+https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0
 
-| 컬럼 | 내용 |
-|---|---|
-| news_id | 뉴스 ID |
-| title | 제목 |
-| description | 요약. 비어 있거나 title과 같으면 없는 것으로 처리 |
-| label | 0 = real, 1 = fake |
-| user_ids | 이 뉴스를 공유한 유저 ID 리스트 |
-| user_times | 각 유저의 공유 시각 (unix) 리스트 |
-
-| 데이터셋 | 뉴스 | 출처 |
-|---|---|---|
-| gossip | 17,527 | FakeNewsNet GossipCop (UPFD + DECOR) |
-| pol | 599 | FakeNewsNet PolitiFact (UPFD + DECOR) |
-| pheme | 5,728 | PHEME |
-| ced | 3,387 | CED (중국어) |
-| mcfend | 6,808 | MCFEND (중국어) |
 
 ## 전처리 (`prepare_data.py`)
 
-모든 모델이 아래 산출물을 그대로 쓴다. 분할 비율 등은 상수로 고정 (CLI로 못 바꿈).
+모든 모델이 아래 산출물을 그대로 쓴다. 분할 비율 등은 상수로 고정 
 
-1. `user_ids`/`user_times` → 유저별 시간순 뉴스 시퀀스. 같은 뉴스 재등장은 첫 번째만.
-2. 슬라이딩 윈도우 인스턴스: context = 직전 최대 **5개**, target = 다음 뉴스.
-3. 인스턴스 전체를 **target 시각순** 정렬 → 앞 80% train / 10% val / 10% test.
-   (랜덤 셔플이 아니라 시간순이라 test에 train에 없던 뉴스가 생김 = PRISM 논문 Table 1의 Unseen)
-4. BERT CLS 임베딩 (title 32토큰, description 128토큰, 각 768, 정규화 안 함) + 토큰 저장.
-   영어 `bert-base-uncased`, 중국어 `bert-base-chinese`.
+1. NEWS1:[USER1, USER2,..] -> USER1: [NEWS1, NEWS2, .. ]   로 변환
+2. 인스턴스 길이 5
+3. 인스턴스 분할은  그 인스턴스의 **target 시각순**으로 한다.  ->  80% train / 10% val / 10% test.
+4. text -> tokens -> emb     save tokens , embs 
+   emb tools->  영어 `bert-base-uncased`, 중국어 `bert-base-chinese`.
 
-산출물 `data/processed/{dataset}/`
+결과 위치 `data/processed/{dataset}/`
 
 | 파일 | 내용 | 사용 모델 |
 |---|---|---|
-| news.csv | idx, news_id, title, description, label | 전체 |
 | news_emb.pt | {"title": [N+1,768], "description": [N+1,768]}, row 0 = 패딩 | Rec4Mit, PRISM, HDInt stage2 |
 | tokens.pt | title/desc input_ids, attention_mask | HDInt stage1 (BERT fine-tune) |
 | train/val/test.json | `[[ctx_ids], target_id, user_idx, target_time]` | 전체 |
