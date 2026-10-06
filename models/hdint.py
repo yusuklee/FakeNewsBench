@@ -29,9 +29,7 @@ import torch.nn.functional as F
 from models.base import BaseModel
 
 
-# ============================================================================
-# 원본 모듈 (HDInt_private/models/component/hdint_model.py 이식)
-# ============================================================================
+# ---- 원본 구성요소 (HDInt_private/models/component/hdint_model.py 이식)
 
 class DisentangleEncoder(nn.Module):
     """수식 2-4: DenseNet 스타일 3층 인코더."""
@@ -274,9 +272,7 @@ class HDIntCore(nn.Module):
         return torch.sigmoid(torch.cat(outs, dim=1))
 
 
-# ============================================================================
-# 벤치 래퍼
-# ============================================================================
+# ---- 벤치 래퍼
 
 CONTENT_DIM = 1536
 KEYWORD_DIM = 2304

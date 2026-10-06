@@ -166,7 +166,7 @@ class Rec4Mit(BaseModel):
         l, logit = self.veracity_dec(h)
         return v, e, l, logit
 
-    def _user_vec(self, seq_ids, pad_mask, u_idx):
+    def _user_vec(self, seq_ids, pad_mask):
         """컨텍스트 -> (e_s, R) ; 후보와 결합은 호출부에서."""
         v_s, e_s, l_s, lg_s = self.disentangle(seq_ids)
         _, e_split = self.detector(e_s)
@@ -179,7 +179,7 @@ class Rec4Mit(BaseModel):
         cand = torch.cat([batch["target"].unsqueeze(1), batch["neg"]], 1)  # [B, 1+K]
         u = batch["user"]
 
-        ctx_out, R = self._user_vec(seq, pad_mask, u)
+        ctx_out, R = self._user_vec(seq, pad_mask)
         v_c, e_c, l_c, lg_c = self.disentangle(cand)
         c_u, _ = self.transition.activate(R, e_c, self.user_emb(u))
         logits = self.predictor(c_u, e_c)  # [B, 1+K]
@@ -210,7 +210,7 @@ class Rec4Mit(BaseModel):
         B = seq.size(0)
         cand = torch.arange(0, self.num_news + 1, device=seq.device)
         _, e_c, _, _ = self.disentangle(cand)                  # [N+1, e]
-        _, R = self._user_vec(seq, pad_mask, u)
+        _, R = self._user_vec(seq, pad_mask)
         ec = e_c.unsqueeze(0).expand(B, -1, -1)
         c_u, _ = self.transition.activate(R, ec, self.user_emb(u))
         return self.predictor(c_u, ec)                        # [B, N+1]

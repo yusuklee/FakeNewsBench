@@ -64,8 +64,6 @@ MODEL_DEFAULTS = {
         "timesteps": 500,
         "beta_start": 1e-4,
         "beta_end": 0.02,
-        "beta_sche": "linear",
-        "fusion_mode": "seqattn",
         "w": 21.0,
         "p": 0.1,
         "diff_cof": 0.1,

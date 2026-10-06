@@ -21,22 +21,12 @@ from torch import nn
 from models.base import BaseModel
 
 
-# ============================================================================
-# 원본 모듈 (PRISM_private/models/component/guided_diffusion.py 이식)
-# ============================================================================
+# ---- 원본 구성요소 (PRISM_private/models/component/guided_diffusion.py 이식)
 
 # ----------------------------------------------------------------------------- diffusion
 
 def linear_beta_schedule(timesteps, beta_start, beta_end):
     return torch.linspace(beta_start, beta_end, timesteps)
-
-
-def cosine_beta_schedule(timesteps, s=0.008):
-    t = torch.linspace(0, timesteps, timesteps + 1) / timesteps
-    alpha_bar = torch.cos((t + s) / (1 + s) * math.pi / 2) ** 2
-    alpha_bar = alpha_bar / alpha_bar[0]
-    beta = 1 - alpha_bar[1:] / alpha_bar[:-1]
-    return torch.clip(beta, 0.0001, 0.9999)
 
 
 def extract(a, t, x_shape):
@@ -48,25 +38,18 @@ class Diffusion(nn.Module):
     """조건부 디퓨전 추천기 (Phase 2)."""
 
     def __init__(self, news_emb: torch.Tensor, input_dim=1536, hidden_size=128, timesteps=200,
-                 beta_start=0.1, beta_end=0.1, beta_sche="linear", hyper_w=0.1,
-                 fusion_mode="seqattn", max_len=5, p=0.1, dropout=0.1, num_heads=4, tau=0.07):
+                 beta_start=0.1, beta_end=0.1, hyper_w=0.1,
+                 max_len=5, p=0.1, dropout=0.1, num_heads=4, tau=0.07):
         super().__init__()
         self.timesteps = timesteps
         self.w = hyper_w
         self.p = p
         self.tau = tau
-        self.fusion_mode = fusion_mode
         self.register_buffer("news_emb", news_emb)            # [N+1, input_dim], row 0 = 패딩
         self.model = ConditionNet(input_dim=input_dim, hidden_size=hidden_size, state_size=max_len,
-                                  dropout=dropout, fusion_mode=fusion_mode, num_heads=num_heads,
-                                  max_len=max_len)
+                                  dropout=dropout, num_heads=num_heads, max_len=max_len)
 
-        if beta_sche == "linear":
-            betas = linear_beta_schedule(timesteps, beta_start, beta_end)
-        elif beta_sche == "cosine":
-            betas = cosine_beta_schedule(timesteps)
-        else:
-            raise ValueError(beta_sche)
+        betas = linear_beta_schedule(timesteps, beta_start, beta_end)
         alphas = 1.0 - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
         alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
@@ -74,8 +57,6 @@ class Diffusion(nn.Module):
         reg("betas", betas)
         reg("sqrt_alphas_cumprod", torch.sqrt(alphas_cumprod))
         reg("sqrt_one_minus_alphas_cumprod", torch.sqrt(1.0 - alphas_cumprod))
-        reg("sqrt_recip_alphas_cumprod", torch.sqrt(1.0 / alphas_cumprod))
-        reg("sqrt_recipm1_alphas_cumprod", torch.sqrt(1.0 / alphas_cumprod - 1))
         reg("posterior_mean_coef1", betas * torch.sqrt(alphas_cumprod_prev) / (1.0 - alphas_cumprod))
         reg("posterior_mean_coef2", (1.0 - alphas_cumprod_prev) * torch.sqrt(alphas) / (1.0 - alphas_cumprod))
         reg("posterior_variance", betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod))
@@ -99,7 +80,7 @@ class Diffusion(nn.Module):
         """seq [B,L] 뉴스 idx (오른쪽 0 패딩), mask [B,L] bool, target [B], authenticity [1,input_dim] (e_real)."""
         len_seq = mask.sum(1)                                              # [B]
         content_features, cmask = self.model.content_encoder(self.lookup(seq), mask)
-        x_start = self.model.cacu_x(self.lookup(target))                   # [B, hidden]
+        x_start = self.model.content_reflect(self.lookup(target))          # [B, hidden]
         h, state_hidden = self.model.cacu_h(seq, self.lookup(seq), len_seq, self.p, mask)
 
         t = torch.randint(0, self.timesteps, (seq.size(0),), device=seq.device).long()
@@ -166,14 +147,13 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 
 class ConditionNet(nn.Module):
-    """조건부 denoiser. 원본과 동일 구조, 768 → input_dim 일반화."""
+    """조건부 denoiser (seqattn). 768 → input_dim 일반화."""
 
     def __init__(self, input_dim=1536, hidden_size=128, state_size=5, dropout=0.1,
-                 fusion_mode="seqattn", num_heads=4, max_len=5):
+                 num_heads=4, max_len=5):
         super().__init__()
         self.state_size = state_size
         self.hidden_size = hidden_size
-        self.fusion_mode = fusion_mode
         self.dropout = nn.Dropout(dropout)
         norm_layer = partial(nn.LayerNorm, eps=1e-6)
 
@@ -190,8 +170,6 @@ class ConditionNet(nn.Module):
         self.ln_1 = nn.LayerNorm(hidden_size)
         self.ln_2 = nn.LayerNorm(hidden_size)
         self.ln_3 = nn.LayerNorm(hidden_size)
-        self.ln_4 = nn.LayerNorm(hidden_size)
-        self.ln_5 = nn.LayerNorm(hidden_size)
 
         self.mh_attn = MultiHeadAttention(hidden_size, hidden_size, num_heads, dropout)
         self.mh_attn_1 = MultiHeadAttention(hidden_size, hidden_size, num_heads, dropout)
@@ -200,18 +178,10 @@ class ConditionNet(nn.Module):
 
         self.nn_1 = nn.Linear(hidden_size, hidden_size)
         self.nn_2 = nn.Linear(2 * hidden_size, hidden_size)
-        self.nn_3 = nn.Linear(hidden_size, hidden_size)
-        self.content_decoder = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size), nn.LeakyReLU(), norm_layer(hidden_size),
-            nn.Dropout(dropout), nn.Linear(hidden_size, input_dim))
         self.feed_forward = PositionwiseFeedForward(hidden_size, hidden_size, dropout)
         self.step_mlp = nn.Sequential(
             SinusoidalPositionEmbeddings(hidden_size), nn.Linear(hidden_size, hidden_size * 2),
             nn.GELU(), nn.Linear(hidden_size * 2, hidden_size))
-        self.emb_mlp = nn.Sequential(nn.SiLU(), nn.Linear(hidden_size, hidden_size * 2))
-        self.diff_mlp = nn.Sequential(
-            nn.Linear(hidden_size * 3, hidden_size * 2), nn.GELU(), nn.Linear(hidden_size * 2, hidden_size))
-        self.diffuser = nn.Sequential(nn.Linear(hidden_size * 4, hidden_size))
         self.init_weights()
 
     def init_weights(self):
@@ -231,43 +201,25 @@ class ConditionNet(nn.Module):
 
         t = self.step_mlp(step)
         x = x.squeeze(1) if x.dim() == 3 else x
-        if self.fusion_mode == "clsattn":
-            x_t = self.nn_2(torch.cat((x, t), dim=1)).unsqueeze(1)
-            cls_token = content[:, 0].unsqueeze(1)
-            e_hat = self.cross_attn_1(x_t, cls_token, cls_token)
-            c_hat = self.cross_attn_2(e_hat, h.unsqueeze(1), h.unsqueeze(1))
-            res = self.feed_forward(c_hat).squeeze(1)
-        elif self.fusion_mode == "seqattn":
-            x_t = self.nn_2(torch.cat((x, t), dim=1)).unsqueeze(1)
-            e_hat = self.cross_attn_1(x_t, content, content, mask)
-            c_hat = self.cross_attn_2(e_hat, state_hidden, state_hidden, mask[:, 1:])
-            h_hat = self.mh_attn_1(c_hat, h.unsqueeze(1), h.unsqueeze(1))
-            res = self.feed_forward(h_hat).squeeze(1)
-        else:
-            res = self.diffuser(torch.cat((x, h, t, content[:, 0, :]), dim=1))
-        return res
+        x_t = self.nn_2(torch.cat((x, t), dim=1)).unsqueeze(1)
+        e_hat = self.cross_attn_1(x_t, content, content, mask)
+        c_hat = self.cross_attn_2(e_hat, state_hidden, state_hidden, mask[:, 1:])
+        h_hat = self.mh_attn_1(c_hat, h.unsqueeze(1), h.unsqueeze(1))
+        return self.feed_forward(h_hat).squeeze(1)
 
     # ---- 무조건 denoising (h 대신 phi, e_fake 조건)
     def forward_uncon(self, x, step, authenticity):
         B = x.shape[0]
         phi = self.none_embedding.weight.view(1, self.hidden_size).expand(B, -1)
         t = self.step_mlp(step)
-        if authenticity is None:
-            return self.diffuser(torch.cat((x, phi, t, phi), dim=1))
         auth = self.nn_1(self.content_reflect(authenticity)).expand(B, -1)
-        if self.fusion_mode in ("clsattn", "seqattn"):
-            x_t = self.nn_2(torch.cat((x, t), dim=1)).unsqueeze(1)
-            auth_kv = auth.unsqueeze(1)
-            phi_kv = phi.unsqueeze(1)
-            e_hat = self.cross_attn_1(x_t, auth_kv, auth_kv)
-            c_hat = self.cross_attn_2(e_hat, phi_kv, phi_kv)
-            if self.fusion_mode == "seqattn":
-                c_hat = self.mh_attn_1(c_hat, phi_kv, phi_kv)
-            return self.feed_forward(c_hat).squeeze(1)
-        return self.diffuser(torch.cat((x, phi, t, auth), dim=1))
-
-    def cacu_x(self, target_emb):
-        return self.content_reflect(target_emb)
+        x_t = self.nn_2(torch.cat((x, t), dim=1)).unsqueeze(1)
+        auth_kv = auth.unsqueeze(1)
+        phi_kv = phi.unsqueeze(1)
+        e_hat = self.cross_attn_1(x_t, auth_kv, auth_kv)
+        c_hat = self.cross_attn_2(e_hat, phi_kv, phi_kv)
+        c_hat = self.mh_attn_1(c_hat, phi_kv, phi_kv)
+        return self.feed_forward(c_hat).squeeze(1)
 
     def content_encoder(self, text, mask):
         """text [B,L,input_dim], mask [B,L] bool -> (features [B,L+1,H], mask [B,L+1])"""
@@ -290,9 +242,7 @@ class ConditionNet(nn.Module):
 
     def cacu_h(self, states, states_emb, len_states, p, attn_mask):
         """학습용 히스토리 인코딩 + CFG dropout. -> (h [B,H], ff_out [B,L,H])"""
-        ff_out = self._encode_seq(states, states_emb, attn_mask)
-        idx = (len_states - 1).clamp(min=0)
-        h = ff_out[torch.arange(ff_out.size(0), device=ff_out.device), idx]       # [B, H]
+        h, ff_out = self.predict(states, states_emb, len_states, attn_mask)
         keep = (torch.rand(h.size(0), 1, device=h.device) >= p).float()
         h = h * keep + self.none_embedding.weight * (1 - keep)
         return h, ff_out
@@ -472,9 +422,7 @@ class ModelWithEmbeddingIB(nn.Module):
         return x_recon, z_label, z_r, z_i, ot_distance, x_ori, contrastive, logits
 
 
-# ============================================================================
-# 벤치 래퍼
-# ============================================================================
+# ---- 벤치 래퍼
 
 class PRISM(BaseModel):
     num_stages = 2
@@ -489,8 +437,8 @@ class PRISM(BaseModel):
         self.classifier = ModelWithEmbeddingIB(input_dim, cfg["hidden_dim"], cfg["bottleneck_dim"], 2)
         self.diffusion = Diffusion(
             emb, input_dim=input_dim, hidden_size=cfg["hidden_dim"], timesteps=cfg["timesteps"],
-            beta_start=cfg["beta_start"], beta_end=cfg["beta_end"], beta_sche=cfg.get("beta_sche", "linear"),
-            hyper_w=cfg["w"], fusion_mode=cfg["fusion_mode"], max_len=cfg["max_len"], p=cfg["p"],
+            beta_start=cfg["beta_start"], beta_end=cfg["beta_end"],
+            hyper_w=cfg["w"], max_len=cfg["max_len"], p=cfg["p"],
             dropout=cfg.get("dropout_rate", 0.1), num_heads=cfg.get("num_heads", 4))
         self.diffusion.eval_seed = cfg["seed"]   # 평가 노이즈 고정 (sample 재현성)
 
