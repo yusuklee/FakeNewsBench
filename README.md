@@ -4,19 +4,19 @@
 NNR(https://github.com/Veason-silverbullet/NNR) 처럼 전처리·Dataset·학습 루프·평가를 공유하고 모델만 `--model`로 바꿔 돌린다.
 
 ```
-python prepare_data.py --dataset all                 # 전처리 1회
-python main.py --model rec4mit --dataset gossip      # 학습 + 테스트
+python prepare_data.py --dataset all   (all, gossip, pol, pheme, ced, mcfend 선택)
+python main.py --model rec4mit --dataset gossip      # (학습 ,테스트 )
 python main.py --model hdint   --dataset gossip
 python main.py --model prism   --dataset gossip
-python main.py --model prism   --dataset gossip --test_only   # 저장된 best.pt 평가
+python main.py --model prism   --dataset gossip --test_only   # (학습은 이미 완료했고 test만 하고싶을떄)
 ```
 
-## 폴더
+## 폴더구조
 
 ```
 FakeNewsBench/
 ├── data/
-│   ├── raw/                 입력 CSV (gossip, pol, pheme, ced, mcfend) — git 미포함, releases 참조
+│   ├── raw/                 입력 CSV 5개 — 없으면 prepare_data.py 가 release v0.1.0 에서 자동 다운로드
 │   └── processed/{dataset}/ prepare_data.py 산출물 — git 미포함
 ├── prepare_data.py          전처리 (1회)
 ├── datasets.py              processed 로드 + 인스턴스 -> 배치 텐서 (모델 공통, 분기 없음)
