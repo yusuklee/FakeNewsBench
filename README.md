@@ -5,10 +5,10 @@ FAKE NEWS DETECTION MODELS (Rec4Mit, HDInt, PRISM)
 
 ```
 python prepare_data.py --dataset all   (all, gossip, pol, pheme, ced, mcfend 선택)
-python main.py --model rec4mit --dataset gossip      # (학습 ,테스트 )
+python main.py --model rec4mit --dataset gossip    학습 + 테스트
 python main.py --model hdint   --dataset gossip
 python main.py --model prism   --dataset gossip
-python main.py --model prism   --dataset gossip --test_only   # (학습은 이미 완료했고 test만 하고싶을떄)
+python main.py --model prism   --dataset gossip --test_only   학습은 이미 완료했고 test만 하고싶을떄
 ```
 
 ## 폴더구조
@@ -42,7 +42,7 @@ https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0
 
 1. NEWS1:[USER1, USER2,..] -> USER1: [NEWS1, NEWS2, .. ]   로 변환
 2. 인스턴스 길이 5
-3. 인스턴스 분할은  그 인스턴스의 **target 시각순**으로 한다.  ->  80% train / 10% val / 10% test.
+3. 인스턴스 분할은 인스턴스들을 모은후  **target 시각순** 정렬하여 분할.  ->  80% train / 10% val / 10% test.
 4. text -> tokens -> emb     save tokens , embs 
    emb tools->  영어 `bert-base-uncased`, 중국어 `bert-base-chinese`.
 
