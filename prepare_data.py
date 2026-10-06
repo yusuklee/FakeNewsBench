@@ -2,7 +2,7 @@
 
   python prepare_data.py --dataset gossip        # gossip / pol / pheme / ced / mcfend / all
 
-입력  : data/raw/{dataset}.csv  (없으면 GitHub release 에서 자동 다운로드)
+입력  : GitHub release v0.1.0 의 {dataset}.csv 를 바로 읽음 (로컬 저장 안 함)
         컬럼 news_id, title, description, label(0 real / 1 fake), user_ids, user_times
 산출  : data/processed/{dataset}/
         news.csv      idx(1..N), news_id, title, description, label
@@ -26,8 +26,6 @@ from collections import defaultdict
 
 import pandas as pd
 import torch
-
-import urllib.request
 
 from config import BERT_BY_DATASET, RAW_FILES, RAW_URL
 
@@ -116,15 +114,10 @@ def encode(texts, tokenizer, model, max_len, device, batch=128):
     return emb, ids, mask
 
 
-def process(dataset: str, raw_dir: str, out_dir: str, max_len: int, device: str):
-    raw = os.path.join(raw_dir, RAW_FILES[dataset])
+def process(dataset: str, out_dir: str, max_len: int, device: str):
+    raw = RAW_URL + RAW_FILES[dataset]
     out = os.path.join(out_dir, dataset)
     os.makedirs(out, exist_ok=True)
-    if not os.path.exists(raw):
-        os.makedirs(raw_dir, exist_ok=True)
-        url = RAW_URL + RAW_FILES[dataset]
-        print(f"[{dataset}] download {url}")
-        urllib.request.urlretrieve(url, raw)
     print(f"[{dataset}] raw={raw}")
 
     df = load_raw(raw)
@@ -192,14 +185,13 @@ def process(dataset: str, raw_dir: str, out_dir: str, max_len: int, device: str)
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", default="all", choices=list(RAW_FILES) + ["all"])
-    p.add_argument("--raw_dir", default=os.path.join(HERE, "data", "raw"))
     p.add_argument("--out_dir", default=os.path.join(HERE, "data", "processed"))
     p.add_argument("--max_len", type=int, default=5)
     p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     a = p.parse_args()
     targets = list(RAW_FILES) if a.dataset == "all" else [a.dataset]
     for d in targets:
-        process(d, a.raw_dir, a.out_dir, a.max_len, a.device)
+        process(d, a.out_dir, a.max_len, a.device)
 
 
 if __name__ == "__main__":

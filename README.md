@@ -16,7 +16,6 @@ python main.py --model prism   --dataset gossip --test_only   # (학습은 이�
 ```
 FakeNewsBench/
 ├── data/
-│   ├── raw/                 입력 CSV 5개 — 없으면 prepare_data.py 가 release v0.1.0 에서 자동 다운로드
 │   └── processed/{dataset}/ prepare_data.py 산출물 — git 미포함
 ├── prepare_data.py          전처리 (1회)
 ├── datasets.py              processed 로드 + 인스턴스 -> 배치 텐서 (모델 공통, 분기 없음)
@@ -35,7 +34,7 @@ FakeNewsBench/
 
 ## 입력 데이터
 
-`data/raw/{dataset}.csv`, 컬럼은 5개 데이터셋 모두 동일. 없으면 https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0 에서 자동 다운로드.
+https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0 의 `{dataset}.csv` 를 `prepare_data.py` 가 바로 읽는다 (로컬 저장 안 함). 컬럼은 5개 데이터셋 모두 동일.
 
 | 컬럼 | 내용 |
 |---|---|
