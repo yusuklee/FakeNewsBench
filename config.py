@@ -1,5 +1,10 @@
 """공통 하이퍼파라미터 + 모델별 기본값. MODEL_DEFAULTS[model] 이 COMMON 을 덮는다."""
 
+import random
+
+import numpy as np
+import torch
+
 COMMON = {
     # 데이터
     "max_len": 5,            # 히스토리 길이 (전처리와 동일해야 함)
@@ -91,7 +96,15 @@ RAW_FILES = {
 }
 
 
+def set_seed(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+
 def build_config(model: str) -> dict:
     cfg = dict(COMMON)
     cfg.update(MODEL_DEFAULTS.get(model, {}))
+    set_seed(cfg["seed"])
     return cfg

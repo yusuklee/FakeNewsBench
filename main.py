@@ -7,11 +7,9 @@
 import argparse
 import logging
 import os
-import random
 import sys
 from datetime import datetime
 
-import numpy as np
 import torch
 
 from config import RAW_FILES, build_config
@@ -20,13 +18,6 @@ from models import REGISTRY, build_model
 from trainer import Trainer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-
-
-def set_seed(seed: int):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
 
 
 def get_logger(path: str) -> logging.Logger:
@@ -49,7 +40,6 @@ def main():
     a = p.parse_args()
 
     cfg = build_config(a.model)
-    set_seed(cfg["seed"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     out_dir = os.path.join(HERE, "checkpoints", a.model, a.dataset)
