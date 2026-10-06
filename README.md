@@ -30,7 +30,6 @@ FakeNewsBench/
 ├── evaluate.py              PRISM 논문 지표, full-ranking
 ├── config.py                공통 하이퍼파라미터 + 모델별 기본값
 ├── main.py                  진입점
-├── tools/make_dummy.py      BERT 없이 돌려보는 가짜 데이터셋
 ├── checkpoints/{model}/{dataset}/best.pt, test_results.json
 └── logs/{model}/{dataset}/{timestamp}.log
 ```
