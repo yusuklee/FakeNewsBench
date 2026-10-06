@@ -16,31 +16,29 @@ python main.py --model prism   --dataset gossip --test_only   # (학습은 이�
 ```
 FakeNewsBench/
 ├── data/
-│   ├── {dataset}.csv        입력 CSV (release 에서 받아 저장)
-│   └── processed/{dataset}/ 
+│   ├── {dataset}.csv       
+│   └── processed/{dataset}/           데이터 전처리 결과 저장되는곳
 ├── prepare_data.py          데이터 저장과 전처리
-├── datasets.py              processed 로드 + 인스턴스 -> 배치 텐서 (모델 공통, 분기 없음)
+├── datasets.py              임베딩, 인스턴스를 모델이 학습할 수 있는 형태로 제공
 ├── models/
-│   ├── base.py              공통 인터페이스 (compute_loss / score / stage hooks)
+│   ├── base.py              모델 공통 으로 부모로 상속
 │   ├── rec4mit.py           WWW'22  Rec4Mit
 │   ├── hdint.py             KDD'24  HDInt
 │   └── prism.py             SIGIR'25 PRISM
-├── trainer.py               공통 학습 루프 (stage, val 평가, best 저장)
-├── evaluate.py              PRISM 논문 지표, full-ranking
-├── config.py                공통 하이퍼파라미터 + 모델별 기본값
-├── main.py                  진입점
+├── trainer.py               학습
+├── evaluate.py              평가
+├── config.py                파라미터 설정하는곳
+├── main.py                  학습 + 테스트
 ├── checkpoints/{model}/{dataset}/best.pt, test_results.json
 └── logs/{model}/{dataset}/{timestamp}.log
 ```
 
-## 입력 데이터
+## 사용 데이터
 
 https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0
 
 
 ## 전처리 (`prepare_data.py`)
-
-모든 모델이 아래 산출물을 그대로 쓴다. 분할 비율 등은 상수로 고정 
 
 1. NEWS1:[USER1, USER2,..] -> USER1: [NEWS1, NEWS2, .. ]   로 변환
 2. 인스턴스 길이 5
@@ -55,9 +53,9 @@ https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0
 | news_emb.pt | {"title": [N+1,768], "description": [N+1,768]}, row 0 = 패딩 | Rec4Mit, PRISM, HDInt stage2 |
 | tokens.pt | title/desc input_ids, attention_mask | HDInt stage1 (BERT fine-tune) |
 | train/val/test.json | `[[ctx_ids], target_id, user_idx, target_time]` | 전체 |
-| meta.json | 뉴스/유저/인스턴스 수, unseen 비율 | 전체 |
+| meta.json | 뉴스/유저/인스턴스 수, unseen 비율 | 전체 |  -> 그냥 설명하는 기능
 
-아직 안 넣은 것 (추후): HDInt용 KeyBERT 키워드 3개, 정치성향 라벨, PRISM의 P_c/P_u 시간 분리.
+
 
 ## Dataset (`datasets.py`)
 
@@ -74,18 +72,7 @@ https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0
 
 임베딩·토큰 조회는 모델이 `data["emb"]`, `data["tokens"]`에서 직접 한다.
 
-## 모델 인터페이스 (`models/base.py`)
 
-```python
-class MyModel(BaseModel):
-    num_stages = 1                       # 다단계 학습이면 2
-    def compute_loss(self, batch, stage) -> (loss, {"name": value})
-    def score(self, batch) -> Tensor[B, N+1]   # 전체 뉴스 점수, full ranking
-    # 선택: configure_optimizer(stage), on_stage_start/end(stage),
-    #       eval_enabled(stage), loader_overrides(stage), candidate_mask()
-```
-
-`models/__init__.py`의 REGISTRY에 이름을 등록하면 `--model`로 호출된다.
 
 ## 평가 (`evaluate.py`)
 
@@ -106,14 +93,14 @@ best 체크포인트는 val HR@5 기준 (`select_metric`).
 
 `config.py` 하나. COMMON (max_len 5, num_neg 4, batch 64, seed 42 ...) 위에 MODEL_DEFAULTS[model]을 덮는다. 바꾸려면 파일을 고친다.
 
-## 모델별 메모
+## 모델 차이
 
 각 모델 파일 상단 docstring에 원본 대비 바뀐 점을 적어 두었다. 공통으로 바뀐 것:
 
-- 히스토리 길이 5 (Rec4Mit·HDInt 4, PRISM 10 → 5)
+- 히스토리 길이 5 (Rec4Mit·HDInt 4, PRISM 10 -> 5)
 - 분할: 단일 시간순 8:1:1 (Rec4Mit 10-fold, HDInt 랜덤, PRISM 유저 단위 → 통일)
 - 텍스트: title + description만 (PRISM 본문 text 없음)
-- 평가: 전부 full-ranking (HDInt 99 네거티브 샘플링 → full)
+-   HDInt용 KeyBERT 키워드 3개, 정치성향 라벨, PRISM의 P_c/P_u 시간 분리.
 
 | 모델 | 학습 | 원본 대비 |
 |---|---|---|
