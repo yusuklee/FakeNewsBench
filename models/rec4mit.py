@@ -1,17 +1,6 @@
-"""Rec4Mit (WWW'22) — 벤치마크 포팅.
+"""Rec4Mit (WWW'22). 1단계.
 
-원본: 졸프_데이터/REC4MIT (rec4mit.py, Model/layer1-3.py, train.py, test.py)
-
-원본 대비 변경점
-  - 히스토리 길이 4 -> cfg["max_len"] (=5). 위치 임베딩 크기도 이에 맞춤
-  - 10-fold -> 공통 전처리의 단일 train/val/test (target 시각순 8:1:1)
-  - 뉴스 메타 임베딩: sentence-transformers(정규화) -> 공통 BERT CLS 테이블 (title 768 + description 768, 정규화 없음)
-  - 평가: 공통 evaluate.py full-ranking (PRISM 지표). 원본 test.py의 `sc - fake*1e4`(분류기 예측 fake 제외)는
-    candidate_mask() 로 재현 (cfg["filter_fake"])
-  - 원본은 정답(target)이 real 인 인스턴스만 학습. 여기서는 예측 손실(L_p)을 target_label==0 인 행에만 적용하고
-    분리 손실(L_d)은 전체 행에 적용 (cfg["train_real_target_only"], 기본 True)
-  - 메타 임베딩은 필드별(title/description) 단위 벡터로 정규화 (cfg["normalize_emb"], 기본 True)
-  - 배치는 오른쪽 패딩으로 들어오므로 left_pad 로 변환 (최근 뉴스가 마지막 위치)
+평가 시 자체 분류기로 fake 후보 제외 (filter_fake).
 """
 
 import torch

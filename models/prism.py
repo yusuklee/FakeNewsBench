@@ -1,15 +1,6 @@
-"""PRISM (SIGIR'25) — 정보 병목 진위 분리기 + 조건부 디퓨전 추천기 (CFG).
+"""PRISM (SIGIR'25). 2단계: IB 분류기 -> 조건부 디퓨전 (CFG).
 
-stage 0 : IB 분류기 (ModelWithEmbeddingIB) 를 뉴스 라이브러리 전체로 학습 → e_real / e_fake 앵커 확보 → 동결
-stage 1 : 디퓨전 추천기 학습. L = L_d(노이즈 MSE) + diff_cof * CE(cosine 스코어, target)
-score   : CFG 샘플링 (w, e_real / e_fake) 으로 타깃 임베딩 생성 → 전체 뉴스와 코사인
-
-원 논문/재현 코드와 다른 점 (벤치 통일 결정)
-  - P_c / P_u 시간 분리 미적용: 분류기도 추천 후보와 같은 뉴스 전체로 학습 (P_c ∩ P_u = ∅ 미보장)
-  - 뉴스 임베딩 = title 768 + description 768 (1536). 본문 text 없음
-  - 히스토리 길이 cfg["max_len"] (=5)
-  - stage 0 의 1 epoch = 뉴스 라이브러리 1회 순회 (트레이너의 인스턴스 배치는 무시)
-  - best 선택은 공통 select_metric (HR@5). 원 코드의 복합 지표 미사용
+생략: P_c/P_u 4:6 분리 (분류기가 전체 뉴스로 학습).
 """
 
 import math

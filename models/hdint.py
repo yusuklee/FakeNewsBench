@@ -1,25 +1,6 @@
-"""HDInt (KDD 2024) — 벤치 래퍼. 2단계 학습.
+"""HDInt (KDD'24). 2단계: BERT fine-tune -> frozen HDInt.
 
-  stage 0  BERT fine-tune : 배치 안 뉴스 토큰을 BERT 로 실시간 인코딩 (상위 N층만 학습) + HDInt 헤드 동시 학습.
-                            stage1_max_samples 개 인스턴스, 작은 배치 + grad accum.
-  on_stage_end(0)         : fine-tuned BERT 로 전체 뉴스 임베딩 추출 -> 버퍼 저장, 헤드 재초기화, BERT 동결.
-  stage 1  frozen         : 저장된 임베딩으로 HDInt 헤드만 학습.
-
-입력 조립 (논문 4.1.1 / 4.2.1)
-  content = [title CLS ; description CLS]               -> 1536
-  keyword = [k1 CLS ; k2 CLS ; k3 CLS]                   -> 2304
-
-TODO (사용자 결정으로 보류된 것 — 전처리에 컬럼이 생기면 바꿀 것)
-  * 키워드 3개가 processed 데이터에 없다. 임시로 title CLS 를 3번 복제해서 keyword 입력으로 쓴다
-    (shape 2304 유지, high-level interest learner 는 그대로 동작).  -> data["tokens"]["k{1,2,3}_ids/mask"]
-    가 생기면 _encode_news() 의 fallback 분기만 제거하면 된다.
-  * 정치성향 라벨이 없다. 전부 1(중립) 로 둔다. PolarityDisentangler 는 구조상 그대로 있고 손실도 계산된다
-    (단일 클래스라 label loss 는 바로 0 근처로 수렴). -> self.pol_lbl 버퍼를 실제 라벨로 채우면 된다.
-
-원본 대비 기타 차이
-  * grad clip(1.0) 과 ReduceLROnPlateau 는 공통 trainer 에 없어 생략.
-  * stage 0 는 CUDA 에서 bf16 autocast 사용 (원본은 fp16 + GradScaler).
-  * 유저 임베딩: 벤치 user idx(0..U-1) 를 직접 사용 (원본은 1-based + padding).
+생략: 키워드 3개(title 임베딩 복제로 대체), 정치성향(전부 중립).
 """
 
 import torch
