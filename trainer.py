@@ -110,8 +110,8 @@ class Trainer:
         self.log.info(f"saved {os.path.join(self.out_dir, 'best.pt')}")
 
     # ---- 평가
-    def test(self, ckpt: str | None = None) -> dict:
-        path = ckpt or os.path.join(self.out_dir, "best.pt")
+    def test(self) -> dict:
+        path = os.path.join(self.out_dir, "best.pt")
         state = torch.load(path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(state["state_dict"])
         m = evaluate(self.model, self.test_loader, self.data["labels"], self.cfg["ks"],

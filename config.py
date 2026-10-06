@@ -1,7 +1,4 @@
-"""공통 하이퍼파라미터 + 모델별 기본값.
-
-우선순위: CLI --set key=value  >  MODEL_DEFAULTS[model]  >  COMMON
-"""
+"""공통 하이퍼파라미터 + 모델별 기본값. MODEL_DEFAULTS[model] 이 COMMON 을 덮는다."""
 
 COMMON = {
     # 데이터
@@ -94,9 +91,7 @@ RAW_FILES = {
 }
 
 
-def build_config(model: str, overrides: dict | None = None) -> dict:
+def build_config(model: str) -> dict:
     cfg = dict(COMMON)
     cfg.update(MODEL_DEFAULTS.get(model, {}))
-    if overrides:
-        cfg.update(overrides)
     return cfg

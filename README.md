@@ -122,12 +122,7 @@ best 체크포인트는 val HR@5 기준 (`select_metric`).
 
 ## 설정
 
-`config.py`의 COMMON (max_len 5, num_neg 4, batch 64, seed 42 ...) 위에 MODEL_DEFAULTS[model]을 덮고,
-CLI `--set key=value`로 다시 덮는다.
-
-```
-python main.py --model hdint --dataset pheme --set "epochs=[1,3]" lr=0.0005
-```
+`config.py` 하나. COMMON (max_len 5, num_neg 4, batch 64, seed 42 ...) 위에 MODEL_DEFAULTS[model]을 덮는다. 바꾸려면 파일을 고친다.
 
 ## 모델별 메모
 
