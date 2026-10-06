@@ -84,6 +84,7 @@ BERT_BY_DATASET = {
     "ced": "bert-base-chinese",
     "mcfend": "bert-base-chinese",
 }
+RAW_URL = "https://github.com/yusuklee/FakeNewsBench/releases/download/v0.1.0/"
 RAW_FILES = {
     "gossip": "gossip.csv",
     "pol": "pol.csv",

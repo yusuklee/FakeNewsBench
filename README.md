@@ -35,7 +35,7 @@ FakeNewsBench/
 
 ## 입력 데이터
 
-`data/raw/{dataset}.csv`, 컬럼은 5개 데이터셋 모두 동일.
+`data/raw/{dataset}.csv`, 컬럼은 5개 데이터셋 모두 동일. 없으면 https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0 에서 자동 다운로드.
 
 | 컬럼 | 내용 |
 |---|---|

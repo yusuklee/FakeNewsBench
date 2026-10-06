@@ -2,7 +2,7 @@
 
   python prepare_data.py --dataset gossip        # gossip / pol / pheme / ced / mcfend / all
 
-입력  : data/raw/{dataset}.csv
+입력  : data/raw/{dataset}.csv  (없으면 GitHub release 에서 자동 다운로드)
         컬럼 news_id, title, description, label(0 real / 1 fake), user_ids, user_times
 산출  : data/processed/{dataset}/
         news.csv      idx(1..N), news_id, title, description, label
@@ -27,7 +27,9 @@ from collections import defaultdict
 import pandas as pd
 import torch
 
-from config import BERT_BY_DATASET, RAW_FILES
+import urllib.request
+
+from config import BERT_BY_DATASET, RAW_FILES, RAW_URL
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TITLE_LEN = 32
@@ -118,6 +120,11 @@ def process(dataset: str, raw_dir: str, out_dir: str, max_len: int, device: str)
     raw = os.path.join(raw_dir, RAW_FILES[dataset])
     out = os.path.join(out_dir, dataset)
     os.makedirs(out, exist_ok=True)
+    if not os.path.exists(raw):
+        os.makedirs(raw_dir, exist_ok=True)
+        url = RAW_URL + RAW_FILES[dataset]
+        print(f"[{dataset}] download {url}")
+        urllib.request.urlretrieve(url, raw)
     print(f"[{dataset}] raw={raw}")
 
     df = load_raw(raw)
