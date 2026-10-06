@@ -46,12 +46,22 @@ https://github.com/yusuklee/FakeNewsBench/releases/tag/v0.1.0
 4. text -> tokens -> emb     save tokens , embs 
    emb tools->  영어 `bert-base-uncased`, 중국어 `bert-base-chinese`.
 
+단어 벡터 파일은 직접 받아서 저장소 폴더(`FakeNewsBench/`)에 둔다 (git 미포함).
+
+- 영어: `glove.840B.300d.zip` — https://nlp.stanford.edu/data/glove.840B.300d.zip
+- 중국어: `sgns.merge.word.bz2` — https://github.com/Embedding/Chinese-Word-Vectors 의 Mixed-large / Word
+
 결과 위치 `data/processed/{dataset}/`
 
 | 파일 | 내용 | 사용 모델 |
 |---|---|---|
-| news_emb.pt | {"title": [N+1,768], "description": [N+1,768]}, row 0 = 패딩 | Rec4Mit, PRISM, HDInt stage2 |
+| news_emb.pt | {"title": [N+1,768], "description": [N+1,768]}, row 0 = 패딩 | Rec4Mit, PRISM |
 | tokens.pt | title/desc input_ids, attention_mask | HDInt stage1 (BERT fine-tune) |
+| category.pt | 뉴스별 카테고리 번호 [N+1]. 제목 TF-IDF → K-means (K = min(300, 뉴스 수 // 100)). CSV에 `category` 컬럼이 있으면(pheme, PHEME 사건 9개) 그 값을 사용 | 아직 없음 (CAUM, FUM 용) |
+| subcategory.pt | 뉴스별 서브카테고리 번호 [N+1]. 카테고리 안에서 K-means 한 번 더 (K = 카테고리 뉴스 수 // 33, 최소 1) | 아직 없음 (FUM 용) |
+| entity.pt | 뉴스별 엔티티 번호 [N+1, 5]. 제목 NER (영어 `dslim/bert-base-NER`, 중국어 `uer/roberta-base-finetuned-cluener2020-chinese`), 0 = 없음 | 아직 없음 (CAUM, FUM 용) |
+| words.pt | 단어 번호 {"title": [N+1,30], "description": [N+1,50]} + 단어 벡터 표 {"emb": [V+1,300]}. 영어 GloVe, 중국어 Chinese Word Vectors | 아직 없음 (NRMS, CAUM, FUM, RobustSentiRec 용) |
+| sentiment.pt | 뉴스별 제목 감성 점수 [N+1], -1(부정) ~ +1(긍정) | 아직 없음 (RobustSentiRec 용) |
 | train/val/test.json | `[[ctx_ids], target_id, user_idx, target_time]` | 전체 |
 | meta.json | 뉴스/유저/인스턴스 수, unseen 비율 | 전체 |  -> 그냥 설명하는 기능
 
@@ -82,9 +92,9 @@ PRISM 논문 지표, 전체 뉴스 라이브러리 full-ranking, K = 5, 10, 20.
 |---|---|
 | HR@K | 정답이 top-K 안에 있는 비율 |
 | NDCG@K | 1 / log2(rank+1) |
-| MRR@K | 1 / rank |
 | RT@K | top-K 중 진짜 뉴스 비율 |
-| WFNS@K | 1 − Σ(fake 순위 가중치) / Σ(1..K). 상위 가짜일수록 큰 패널티 |
+| FNSR@K | 1 − Σ(fake 순위 가중치) / Σ(1..K). 상위 가짜일수록 큰 패널티 |
+| F1@K | 2 · HR · FNSR / (HR + FNSR) |
 | 1-R | 1위가 진짜 뉴스인 비율 |
 
 best 체크포인트는 val HR@5 기준 (`select_metric`).

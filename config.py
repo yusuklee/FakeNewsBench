@@ -24,6 +24,7 @@ COMMON = {
     "exclude_history": False, # True면 히스토리 뉴스를 후보에서 제외
 }
 
+
 MODEL_DEFAULTS = {
     "rec4mit": {
         "epochs": 15,
@@ -78,22 +79,45 @@ MODEL_DEFAULTS = {
     },
 }
 
-# 데이터셋별 BERT (전처리용)
-BERT_BY_DATASET = {
+BERT_MODEL = {
     "gossip": "bert-base-uncased",
     "pol": "bert-base-uncased",
     "pheme": "bert-base-uncased",
     "ced": "bert-base-chinese",
     "mcfend": "bert-base-chinese",
 }
-RAW_URL = "https://github.com/yusuklee/FakeNewsBench/releases/download/v0.1.0/"
-RAW_FILES = {
-    "gossip": "gossip.csv",
-    "pol": "pol.csv",
-    "pheme": "pheme.csv",
-    "ced": "ced.csv",
-    "mcfend": "mcfend.csv",
+
+# 데이터셋별 NER 모델 (전처리용, 엔티티 추출)
+NER_MODEL = {
+    "gossip": "dslim/bert-base-NER",
+    "pol": "dslim/bert-base-NER",
+    "pheme": "dslim/bert-base-NER",
+    "ced": "uer/roberta-base-finetuned-cluener2020-chinese",
+    "mcfend": "uer/roberta-base-finetuned-cluener2020-chinese",
 }
+
+# 데이터셋별 사전학습 단어 벡터 파일 (전처리용). 직접 받아서 저장소 폴더에 둔다
+#   glove.840B.300d.zip   https://nlp.stanford.edu/data/glove.840B.300d.zip
+#   sgns.merge.word.bz2   https://github.com/Embedding/Chinese-Word-Vectors (Mixed-large, Word)
+WORD_VEC = {
+    "gossip": "glove.840B.300d.zip",
+    "pol": "glove.840B.300d.zip",
+    "pheme": "glove.840B.300d.zip",
+    "ced": "sgns.merge.word.bz2",
+    "mcfend": "sgns.merge.word.bz2",
+}
+
+# 데이터셋별 감성 분류 모델 (전처리용, 감성 점수)
+SENTIMENT_MODEL = {
+    "gossip": "distilbert-base-uncased-finetuned-sst-2-english",
+    "pol": "distilbert-base-uncased-finetuned-sst-2-english",
+    "pheme": "distilbert-base-uncased-finetuned-sst-2-english",
+    "ced": "lxyuan/distilbert-base-multilingual-cased-sentiments-student",
+    "mcfend": "lxyuan/distilbert-base-multilingual-cased-sentiments-student",
+}
+
+DATA_URL = "https://github.com/yusuklee/FakeNewsBench/releases/download/v0.1.0/"
+
 
 
 def set_seed(seed: int):

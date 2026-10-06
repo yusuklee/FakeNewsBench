@@ -7,4 +7,6 @@ __pycache__/
 .idea/
 .vscode/
 data/*.log
+glove.840B.300d.zip
+sgns.merge.word.bz2
 .gitignore

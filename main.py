@@ -12,7 +12,7 @@ from datetime import datetime
 
 import torch
 
-from config import RAW_FILES, build_config
+from config import BERT_MODEL, build_config
 from datasets import load_processed
 from models import REGISTRY, build_model
 from trainer import Trainer
@@ -35,7 +35,7 @@ def get_logger(path: str) -> logging.Logger:
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--model", required=True, choices=list(REGISTRY))
-    p.add_argument("--dataset", required=True, choices=list(RAW_FILES))
+    p.add_argument("--dataset", required=True, choices=list(BERT_MODEL))
     p.add_argument("--test_only", action="store_true")
     a = p.parse_args()
 

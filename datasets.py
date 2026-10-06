@@ -20,15 +20,13 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from config import RAW_FILES
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def load_processed(dataset: str, root: str | None = None, need_tokens: bool = True) -> dict:
     d = os.path.join(root or os.path.join(HERE, "data", "processed"), dataset)
     meta = json.load(open(os.path.join(d, "meta.json")))
-    news = pd.read_csv(os.path.join(HERE, "data", RAW_FILES[dataset]), usecols=["label"])
+    news = pd.read_csv(os.path.join(HERE, "data", f"{dataset}.csv"), usecols=["label"])
     n = meta["num_news"]
     labels = torch.zeros(n + 1, dtype=torch.float)
     labels[1:] = torch.tensor(news["label"].values, dtype=torch.float)

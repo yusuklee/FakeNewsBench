@@ -2,13 +2,11 @@
 
   HR@K    정답이 top-K 안에 있는 비율
   NDCG@K  1/log2(rank+1)
-  MRR@K   1/rank (top-K 밖이면 0)
   RT@K    top-K 중 진짜 뉴스 비율
-  WFNS@K  1 - sum_{fake in topK}(K - idx) / sum(1..K)   (상위 가짜일수록 큰 패널티)
+  FNSR@K  1 - sum_{fake in topK}(K - idx) / sum(1..K)   (상위 가짜일수록 큰 패널티)
+  F1@K    2 * HR * FNSR / (HR + FNSR)
   1-R     1위가 진짜 뉴스인 비율
 """
-
-import math
 
 import torch
 
@@ -25,9 +23,8 @@ def evaluate(model, loader, labels: torch.Tensor, ks=(5, 10, 20), device="cpu",
 
     hit = {k: 0.0 for k in ks}
     ndcg = {k: 0.0 for k in ks}
-    mrr = {k: 0.0 for k in ks}
     real = {k: 0.0 for k in ks}
-    wfns = {k: 0.0 for k in ks}
+    fnsr = {k: 0.0 for k in ks}
     top1_real = 0.0
     n = 0
     denom = {k: k * (k + 1) / 2 for k in ks}
@@ -55,26 +52,26 @@ def evaluate(model, loader, labels: torch.Tensor, ks=(5, 10, 20), device="cpu",
             inK = rank <= k
             hit[k] += inK.float().sum().item()
             ndcg[k] += (inK.float() / torch.log2(rank.float() + 1)).sum().item()
-            mrr[k] += (inK.float() / rank.float()).sum().item()
             fk = fake[:, :k]
             real[k] += (1 - fk).sum().item() / k
             w = torch.arange(k, 0, -1, device=device, dtype=torch.float)   # idx 0 -> k, ..., idx k-1 -> 1
-            wfns[k] += (1 - (fk * w).sum(1) / denom[k]).sum().item()
+            fnsr[k] += (1 - (fk * w).sum(1) / denom[k]).sum().item()
 
     out = {"n": n}
     for k in ks:
         out[f"HR@{k}"] = hit[k] / n
         out[f"NDCG@{k}"] = ndcg[k] / n
-        out[f"MRR@{k}"] = mrr[k] / n
         out[f"RT@{k}"] = real[k] / n
-        out[f"WFNS@{k}"] = wfns[k] / n
+        out[f"FNSR@{k}"] = fnsr[k] / n
+        hr, fs = out[f"HR@{k}"], out[f"FNSR@{k}"]
+        out[f"F1@{k}"] = 2 * hr * fs / (hr + fs) if hr + fs > 0 else 0.0
     out["1-R"] = top1_real / n
     model.train()
     return out
 
 
 def format_table(m: dict, ks=(5, 10, 20)) -> str:
-    rows = ["HR", "NDCG", "MRR", "RT", "WFNS"]
+    rows = ["HR", "NDCG", "RT", "FNSR", "F1"]
     head = "Metric  " + "".join(f"@{k:<9}" for k in ks)
     lines = [head]
     for r in rows:
