@@ -5,6 +5,11 @@ REGISTRY = {
     "rec4mit": ("models.rec4mit", "Rec4Mit"),
     "hdint": ("models.hdint", "HDInt"),
     "prism": ("models.prism", "PRISM"),
+    "nrms": ("models.nrms", "NRMS"),
+    "robust_sentirec": ("models.robust_sentirec", "RobustSentiRec"),
+    "caum": ("models.caum", "CAUM"),
+    "fum": ("models.fum", "FUM"),
+    "miner": ("models.miner", "MINER"),
 }
 
 

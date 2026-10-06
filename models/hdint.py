@@ -450,12 +450,12 @@ class HDInt(BaseModel):
     @torch.no_grad()
     def candidate_mask(self):
         if not self.cfg.get("filter_fake", False):
-            return None
+            return self.pc
         content, _ = self._emb_tables()
         prob = self.core.disentangler.predict_veracity(self.core.proj_content(content))
         m = prob >= self.cfg.get("fake_threshold", 0.5)
         m[0] = False
-        return m
+        return m | self.pc
 
     def train(self, mode: bool = True):
         super().train(mode)

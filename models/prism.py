@@ -1,6 +1,6 @@
 """PRISM (SIGIR'25). 2단계: IB 분류기 -> 조건부 디퓨전 (CFG).
 
-생략: P_c/P_u 4:6 분리 (분류기가 전체 뉴스로 학습).
+분류기는 P_c(시간순 앞 20%) 뉴스로만 학습. 추천 학습·후보는 다른 모델과 같이 P_u 뉴스만.
 """
 
 import math
@@ -440,8 +440,8 @@ class PRISM(BaseModel):
 
     # ------------------------------------------------------------------ stage 제어
     def loader_overrides(self, stage):
-        if stage == 0:   # 1 epoch = 뉴스 1회 순회 (배치 수 = ceil(N / batch_size))
-            return {"batch_size": self.cfg["batch_size"], "max_samples": self.num_news}
+        if stage == 0:   # 1 epoch = P_c 뉴스 1회 순회 (배치 수 = ceil(P_c 뉴스 수 / batch_size))
+            return {"batch_size": self.cfg["batch_size"], "max_samples": int(self.pc.sum())}
         return {}
 
     def eval_enabled(self, stage):
@@ -471,7 +471,8 @@ class PRISM(BaseModel):
     def _next_news_chunk(self):
         bs = self.cfg["batch_size"]
         if self._perm is None or self._pos >= len(self._perm):
-            self._perm = torch.randperm(self.num_news, generator=self._gen) + 1
+            ids = self.pc.nonzero().squeeze(1).cpu()
+            self._perm = ids[torch.randperm(len(ids), generator=self._gen)]
             self._pos = 0
         idx = self._perm[self._pos:self._pos + bs]
         self._pos += bs

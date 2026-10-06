@@ -44,7 +44,8 @@ class Trainer:
             rng = random.Random(self.cfg["seed"] + stage)
             inst = rng.sample(inst, ov["max_samples"])
         ds = BenchDataset(inst, self.data["labels"], max_len=self.cfg["max_len"],
-                          num_neg=self.cfg["num_neg"], train=True, seed=self.cfg["seed"] + stage)
+                          num_neg=self.cfg["num_neg"], train=True, seed=self.cfg["seed"] + stage,
+                          exclude=self.data["pc"])
         return DataLoader(ds, batch_size=ov.get("batch_size", self.cfg["batch_size"]), shuffle=True,
                           num_workers=self.cfg["num_workers"], drop_last=False)
 

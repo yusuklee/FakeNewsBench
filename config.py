@@ -77,6 +77,43 @@ MODEL_DEFAULTS = {
         "gamma": 0.1,
         "eval_every": 5,
     },
+    "nrms": {
+        "num_heads": 16,         # 논문: 16 heads x 16 dim, query 200, dropout 0.2
+        "head_dim": 16,
+        "query_dim": 200,
+        "dropout": 0.2,
+    },
+    "robust_sentirec": {
+        "lr": 1e-4,              # 원본 설정 (bert_mu1.yaml)
+        "num_heads": 15,
+        "query_dim": 200,
+        "dropout": 0.2,
+        "mu": 1.0,               # 감성 다양성 손실 가중치
+    },
+    "caum": {
+        "lr": 5e-5,              # 원본 코드 값
+        "dropout": 0.2,
+        "news_dim": 400,
+        "entity_dim": 100,
+        "score_pairs": 32768,    # 평가 시 한 번에 계산할 (유저, 후보) 쌍 수
+        "eval_every": 5,         # 후보마다 유저 벡터를 다시 계산해서 full-ranking 평가가 느림
+    },
+    "fum": {
+        "lr": 1e-4,              # 원본 코드 값
+        "dropout": 0.2,
+    },
+    "miner": {
+        "epochs": 5,             # 논문: 5 epoch, lr 2e-5, K=32, code 200, beta 0.8
+        "lr": 2e-5,
+        "batch_size": 16,        # BERT fine-tune 이라 작게 + grad_accum
+        "grad_accum": 4,
+        "max_samples": 50000,    # epoch 당 학습 인스턴스 상한
+        "num_codes": 32,
+        "code_dim": 200,
+        "category_dim": 300,
+        "beta": 0.8,             # 불일치 정규화 가중치
+        "dropout": 0.2,
+    },
 }
 
 BERT_MODEL = {

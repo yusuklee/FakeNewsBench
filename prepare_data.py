@@ -8,21 +8,21 @@
 산출  : data/processed/{dataset}/
         news_emb.pt   {"title": [N+1,768], "description": [N+1,768]}  BERT CLS, row 0 = 패딩
         tokens.pt     {"title_ids","title_mask":[N+1,32], "desc_ids","desc_mask":[N+1,128]}
-        category.pt     Long [N+1]  제목 TF-IDF K-means 군집 번호 (1..K), row 0 = 패딩
-                        CSV 에 category 컬럼이 있으면 K-means 대신 그 값을 번호로 바꿔 쓴다
-        subcategory.pt  Long [N+1]  카테고리 안에서 K-means 를 한 번 더 돌린 번호, row 0 = 패딩
-        entity.pt       Long [N+1,5]  제목 NER 로 뽑은 엔티티 번호 (뉴스당 최대 5개), 0 = 패딩
-        words.pt        {"title": Long [N+1,30], "description": Long [N+1,50]} 단어 번호, 0 = 패딩
-                        {"emb": Float [V+1,300]} 단어 번호별 벡터 (GloVe / Chinese Word Vectors)
-        sentiment.pt    Float [N+1]  제목 감성 점수 -1(부정) ~ +1(긍정)
+        category.pt     Long [N+1]  제목 TF-IDF K-means 군집 번호 (CSV 에 category 컬럼이 있으면 그 값)
+        subcategory.pt  Long [N+1]  카테고리 안에서 K-means 한 번 더
+        entity.pt       Long [N+1,5]  제목 NER 엔티티 번호
+        words.pt        {"title": [N+1,30], "description": [N+1,50]} 단어 번호, {"emb": [V+1,300]} 단어 벡터
+        sentiment.pt    Float [N+1]  제목 감성 점수 -1 ~ +1
+        pc.pt           Bool [N+1]  True = P_c 뉴스
         train.json / val.json / test.json   [[ctx_ids], target_id, user_idx, target_time]
         meta.json
 
 규칙
-  - description이 비어 있거나 title과 같으면 description은 없는 것으로 처리 (임베딩/토큰 0)
-  - 유저 시퀀스: user_times 기준 시간순, 같은 뉴스 재등장은 첫 번째만 유지
-  - 인스턴스: 슬라이딩 윈도우, context = 직전 최대 max_len개, target = 다음 뉴스
-  - 분할: 인스턴스 전체를 target_time 순으로 정렬 → 앞 80% train / 10% val / 10% test
+  - description이 비어 있거나 title과 같으면 없는 것으로 처리
+  - 뉴스 분리: 뉴스 시각순 앞 20% = P_c (PRISM 분류기용), 뒤 80% = P_u. 인스턴스는 P_u 뉴스만
+  - 유저 시퀀스: 시간순, 중복 공유 유지
+  - 인스턴스: 직전 최대 max_len개 -> 다음 뉴스
+  - 분할: 인스턴스 무작위 8:1:1
 """
 
 import argparse
@@ -31,6 +31,7 @@ import bz2
 import io
 import json
 import os
+import random
 import re
 import urllib.request
 import zipfile
@@ -46,11 +47,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TITLE_LEN = 32
 DESC_LEN = 128
 SPLIT = (0.8, 0.1, 0.1)
+PC_RATIO = 0.2          # 시간순 앞쪽 뉴스 비율 (P_c)
 ENTITY_LEN = 5
 WORD_TITLE_LEN = 30     # FUM MAX_TITLE
 WORD_DESC_LEN = 50      # FUM MAX_CONTENT
 WORD_DIM = 300
-NUM_CATEGORY = 300      # Pref-FEND(CIKM'21) K-means K. 뉴스가 적으면 뉴스 수 // 100
+NUM_CATEGORY = 300      # K-means K 상한. K = min(300, 뉴스 수 // 100)
 
 
 def load_raw(path: str) -> pd.DataFrame:
@@ -65,8 +67,26 @@ def load_raw(path: str) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+def split_news(df: pd.DataFrame):
+    """뉴스 시각(가장 먼저 공유된 시각)순으로 앞 PC_RATIO = P_c. -> Bool [N+1] (True = P_c)"""
+    times = []
+    for s in df["user_times"]:
+        ts = []
+        for t in ast.literal_eval(s):
+            try:
+                ts.append(int(t))
+            except (TypeError, ValueError):
+                continue
+        times.append(min(ts, default=None))
+    timed = sorted((i for i, t in enumerate(times) if t is not None), key=lambda i: times[i])
+    pc = torch.ones(len(df) + 1, dtype=torch.bool)
+    pc[0] = False
+    pc[[i + 1 for i in timed[int(len(timed) * PC_RATIO):]]] = False
+    return pc
+
+
 def build_sequences(df: pd.DataFrame):
-    """{user: [(time, news_idx)]} 시간순, 중복 뉴스는 첫 등장만."""
+    """{user: [(time, news_idx)]} 시간순."""
     events = defaultdict(list)
     for idx, row in enumerate(df.itertuples(index=False), start=1):
         users = ast.literal_eval(row.user_ids)
@@ -80,13 +100,8 @@ def build_sequences(df: pd.DataFrame):
     seqs = {}
     for u, ev in events.items():
         ev.sort(key=lambda x: x[0])
-        seen, out = set(), []
-        for t, n in ev:
-            if n not in seen:
-                seen.add(n)
-                out.append((t, n))
-        if len(out) >= 2:
-            seqs[u] = out
+        if len(ev) >= 2:
+            seqs[u] = ev
     return seqs
 
 
@@ -101,8 +116,10 @@ def build_instances(seqs: dict, max_len: int):
     return inst
 
 
-def temporal_split(inst: list):
+def random_split(inst: list):
+    """인스턴스를 무작위로 섞어 나눈다. -> train, val, test"""
     inst = sorted(inst, key=lambda x: (x[0], x[3]))
+    random.Random(COMMON["seed"]).shuffle(inst)
     n = len(inst)
     n_tr = int(n * SPLIT[0])
     n_va = int(n * (SPLIT[0] + SPLIT[1]))
@@ -227,9 +244,11 @@ def sentiment_scores(titles, model_name, device, batch=64):
     return out
 
 
-def process(dataset: str, out_dir: str, max_len: int, device: str):
+def process(dataset: str):
+    max_len = COMMON["max_len"]
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     raw = os.path.join(HERE, "data", f"{dataset}.csv")
-    out = os.path.join(out_dir, dataset)
+    out = os.path.join(HERE, "data", "processed", dataset)
     os.makedirs(out, exist_ok=True)
     if not os.path.exists(raw):
         urllib.request.urlretrieve(DATA_URL + f"{dataset}.csv", raw)
@@ -240,10 +259,17 @@ def process(dataset: str, out_dir: str, max_len: int, device: str):
     print(f"  news={n_news} real={(df.label == 0).sum()} fake={(df.label == 1).sum()} "
           f"no_desc={(df.description == '').sum()}")
 
-    # ---- 시퀀스 / 인스턴스 / 분할
-    seqs = build_sequences(df)
+    # ---- 뉴스 분리 (P_c / P_u)
+    pc = split_news(df)
+    torch.save(pc, os.path.join(out, "pc.pt"))
+    n_pc = int(pc.sum())
+    print(f"  P_c={n_pc} P_u={n_news - n_pc}")
+
+    # ---- 시퀀스(P_u 뉴스만) / 인스턴스 / 분할
+    seqs = {u: [e for e in seq if not pc[e[1]]] for u, seq in build_sequences(df).items()}
+    seqs = {u: seq for u, seq in seqs.items() if len(seq) >= 2}
     inst = build_instances(seqs, max_len)
-    train, val, test = temporal_split(inst)
+    train, val, test = random_split(inst)
     users = sorted({u for _, _, _, u in inst}, key=str)
     u2i = {u: i for i, u in enumerate(users)}
     print(f"  users={len(users)} instances={len(inst)} "
@@ -292,9 +318,8 @@ def process(dataset: str, out_dir: str, max_len: int, device: str):
     # ---- 단어 번호 / 단어 벡터
     words, n_found = build_words(df["title"].tolist(), df["description"].tolist(),
                                  os.path.join(HERE, WORD_VEC[dataset]), "chinese" in bert_name)
-    n_word = words["emb"].size(0) - 1
     torch.save(words, os.path.join(out, "words.pt"))
-    print(f"  words={n_word} (벡터 있음 {n_found})")
+    print(f"  words={words['emb'].size(0) - 1} (벡터 있음 {n_found})")
 
     # ---- 감성 점수
     senti = sentiment_scores(df["title"].tolist(), SENTIMENT_MODEL[dataset], device)
@@ -303,14 +328,10 @@ def process(dataset: str, out_dir: str, max_len: int, device: str):
 
     meta = {
         "dataset": dataset, "num_news": n_news, "num_users": len(users),
-        "max_len": max_len, "bert": bert_name, "emb_dim": int(t_emb.shape[1]),
-        "title_len": TITLE_LEN, "desc_len": DESC_LEN,
+        "num_pc": n_pc, "num_pu": n_news - n_pc, "max_len": max_len, "bert": bert_name,
         "num_category": int(cat.max()), "num_subcategory": int(sub.max()), "num_entity": n_ent,
-        "num_word": n_word,
         "num_instances": {"train": len(train), "val": len(val), "test": len(test)},
         "unseen": {k: v[0] / max(v[1], 1) for k, v in unseen.items()},
-        "time_cut": {"train_end": train[-1][0] if train else None,
-                     "val_end": val[-1][0] if val else None},
     }
     with open(os.path.join(out, "meta.json"), "w") as f:
         json.dump(meta, f, indent=2)
@@ -320,13 +341,9 @@ def process(dataset: str, out_dir: str, max_len: int, device: str):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--dataset", default="all", choices=list(BERT_MODEL) + ["all"])
-    p.add_argument("--out_dir", default=os.path.join(HERE, "data", "processed"))
-    p.add_argument("--max_len", type=int, default=5)
-    p.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     a = p.parse_args()
-    targets = list(BERT_MODEL) if a.dataset == "all" else [a.dataset]
-    for d in targets:
-        process(d, a.out_dir, a.max_len, a.device)
+    for d in (list(BERT_MODEL) if a.dataset == "all" else [a.dataset]):
+        process(d)
 
 
 if __name__ == "__main__":

@@ -23,36 +23,36 @@ from torch.utils.data import Dataset
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
-def load_processed(dataset: str, root: str | None = None, need_tokens: bool = True) -> dict:
-    d = os.path.join(root or os.path.join(HERE, "data", "processed"), dataset)
+def load_processed(dataset: str) -> dict:
+    d = os.path.join(HERE, "data", "processed", dataset)
     meta = json.load(open(os.path.join(d, "meta.json")))
     news = pd.read_csv(os.path.join(HERE, "data", f"{dataset}.csv"), usecols=["label"])
     n = meta["num_news"]
     labels = torch.zeros(n + 1, dtype=torch.float)
     labels[1:] = torch.tensor(news["label"].values, dtype=torch.float)
     emb = torch.load(os.path.join(d, "news_emb.pt"))
-    out = {
+    return {
         "name": dataset, "dir": d, "meta": meta,
         "num_news": n, "num_users": meta["num_users"],
         "labels": labels,                      # [N+1] 0 real / 1 fake
+        "pc": torch.load(os.path.join(d, "pc.pt")),   # [N+1] True = P_c 뉴스 (인스턴스·후보에서 제외)
         "emb": emb,                            # {"title": [N+1,768], "description": [N+1,768]}
-        "tokens": None,
+        "tokens": torch.load(os.path.join(d, "tokens.pt")),
         "splits": {s: json.load(open(os.path.join(d, f"{s}.json"))) for s in ("train", "val", "test")},
     }
-    if need_tokens and os.path.exists(os.path.join(d, "tokens.pt")):
-        out["tokens"] = torch.load(os.path.join(d, "tokens.pt"))
-    return out
 
 
 class BenchDataset(Dataset):
     def __init__(self, instances: list, labels: torch.Tensor, max_len: int = 5,
-                 num_neg: int = 4, train: bool = True, seed: int = 42):
+                 num_neg: int = 4, train: bool = True, seed: int = 42, exclude: torch.Tensor | None = None):
         self.inst = instances
         self.labels = labels
         self.max_len = max_len
         self.num_neg = num_neg
         self.train = train
-        lab = labels[1:].numpy()
+        lab = labels[1:].numpy().copy()
+        if exclude is not None:
+            lab[exclude[1:].numpy()] = -1      # 제외할 뉴스(P_c)는 네거티브 풀에 넣지 않는다
         self.real_pool = np.where(lab == 0)[0] + 1
         self.fake_pool = np.where(lab == 1)[0] + 1
         self.rng = np.random.default_rng(seed)

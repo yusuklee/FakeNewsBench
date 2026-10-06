@@ -207,7 +207,7 @@ class Rec4Mit(BaseModel):
     @torch.no_grad()
     def candidate_mask(self):
         if not self.cfg.get("filter_fake", True):
-            return None
+            return self.pc
         was_training = self.training
         self.eval()
         cand = torch.arange(0, self.num_news + 1, device=self.device)
@@ -216,4 +216,4 @@ class Rec4Mit(BaseModel):
         mask[0] = True
         if was_training:
             self.train()
-        return mask
+        return mask | self.pc
