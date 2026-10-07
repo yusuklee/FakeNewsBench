@@ -1,11 +1,5 @@
-"""PRISM 논문 평가지표, full-ranking (전체 뉴스 라이브러리 순위).
-
-  HR@K    정답이 top-K 안에 있는 비율
-  NDCG@K  1/log2(rank+1)
-  RT@K    top-K 중 진짜 뉴스 비율
-  FNSR@K  1 - sum_{fake in topK}(K - idx) / sum(1..K)   (상위 가짜일수록 큰 패널티)
-  F1@K    2 * HR * FNSR / (HR + FNSR)
-  1-R     1위가 진짜 뉴스인 비율
+"""PRISM 논문 지표 (HR, NDCG, RT, FNSR, F1, 1-R), 전체 뉴스 full-ranking.
+FNSR@K = 1 - sum_{fake in topK}(K - idx) / sum(1..K),  F1@K = 2*HR*FNSR/(HR+FNSR)
 """
 
 import torch

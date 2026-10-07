@@ -1,7 +1,4 @@
-"""학습 + 평가 진입점.
-
-  python main.py --model prism   --dataset gossip
-  python main.py --model rec4mit --dataset gossip --test_only
+"""학습 + 평가 진입점.  python main.py --model prism --dataset gossip [--test_only]
 """
 
 import argparse

@@ -1,15 +1,5 @@
-"""processed/ 로드 + 인스턴스를 배치 텐서로 변환하는 Dataset (모델 공통, 분기 없음).
-
-배치 키
-  ctx          Long [L]   히스토리 뉴스 idx, 오른쪽 0 패딩
-  mask         Bool [L]   True = 실제 뉴스
-  target       Long       정답 뉴스 idx
-  user         Long       유저 idx
-  neg          Long [K]   네거티브 (real K/2 + fake K/2, target 제외). 평가 시 0
-  ctx_label    Float [L]  히스토리 진위 (0 real / 1 fake, 패딩 0)
-  target_label Float
-  neg_label    Float [K]
-임베딩/토큰 조회는 모델이 한다 (data["emb"], data["tokens"]).
+"""processed/ 로드 + 인스턴스 -> 배치 텐서 (ctx, mask, target, user, neg[real K/2 + fake K/2], ctx_label, target_label, neg_label).
+임베딩/토큰 조회는 모델이 data["emb"], data["tokens"] 로 직접 한다.
 """
 
 import json

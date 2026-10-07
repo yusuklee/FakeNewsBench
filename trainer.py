@@ -1,7 +1,4 @@
-"""공통 학습 루프. 모델 종류를 모른다. BaseModel 인터페이스만 사용.
-
-stage 별로: 로더 생성 -> optimizer -> epochs 반복 -> (eval_enabled 이면) val 평가 -> best 유지
-stage 끝: best 가중치 복원 -> model.on_stage_end(stage)
+"""공통 학습 루프. stage 별로 로더 -> optimizer -> epochs (val 평가, best 유지) -> best 복원 -> on_stage_end.
 """
 
 import copy

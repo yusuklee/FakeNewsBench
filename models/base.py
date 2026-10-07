@@ -7,18 +7,8 @@ import torch.nn as nn
 
 
 class BaseModel(nn.Module):
-    """
-    필수 구현
-      compute_loss(batch, stage) -> (loss: Tensor, logs: dict[str, float])
-      score(batch) -> FloatTensor [B, N+1]   전체 뉴스 점수 (높을수록 추천). 0번 열은 무시됨
-    선택 구현
-      num_stages                  다단계 학습 수 (기본 1)
-      configure_optimizer(stage)  -> optimizer 또는 (optimizer, scheduler)
-      on_stage_start / on_stage_end(stage)
-      eval_enabled(stage)         이 stage 에서 val 평가를 할지 (PRISM phase1 = False)
-      loader_overrides(stage)     {"batch_size":..., "max_samples":...} 학습 로더 덮어쓰기
-      candidate_mask()            -> Bool [N+1] 평가 시 후보에서 제외할 뉴스 (True = 제외). 기본 = P_c 뉴스
-    """
+    """필수: compute_loss(batch, stage) -> (loss, logs), score(batch) -> [B, N+1] 전체 뉴스 점수 (0번 열 무시).
+    선택: num_stages, configure_optimizer, on_stage_start/end, eval_enabled, loader_overrides, candidate_mask (기본 = P_c 제외)"""
     num_stages = 1
 
     def __init__(self, data: dict, cfg: dict, device):

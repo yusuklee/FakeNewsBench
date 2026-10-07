@@ -1,5 +1,4 @@
 """RobustSentiRec (Sertkan et al., 2022). 1단계.
-
 생략: 없음. 감성 점수는 sentiment.pt (원본 bert_sentiment 방식), 단어 임베딩은 words.pt.
 """
 

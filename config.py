@@ -35,8 +35,7 @@ MODEL_DEFAULTS = {
         "user_dim": 128,
         "filter_fake": True,     # 평가 시 분류기 예측 fake를 후보에서 제외 (원 논문 방식)
         "fake_threshold": 0.5,
-        "train_real_target_only": True,
-        "normalize_emb": True,  # 원본: 정답이 real인 인스턴스만 학습 (예측 손실에만 적용)
+        "normalize_emb": True,
     },
     "hdint": {
         "epochs": [5, 15],       # [stage1: BERT fine-tune, stage2: frozen HDInt]
@@ -133,9 +132,8 @@ NER_MODEL = {
     "mcfend": "uer/roberta-base-finetuned-cluener2020-chinese",
 }
 
-# 데이터셋별 사전학습 단어 벡터 파일 (전처리용). 직접 받아서 저장소 폴더에 둔다
-#   glove.840B.300d.zip   https://nlp.stanford.edu/data/glove.840B.300d.zip
-#   sgns.merge.word.bz2   https://github.com/Embedding/Chinese-Word-Vectors (Mixed-large, Word)
+# 데이터셋별 사전학습 단어 벡터 파일 (전처리용). 직접 받아 저장소 폴더에 둔다
+#   GloVe: nlp.stanford.edu/data/glove.840B.300d.zip, 중국어: github.com/Embedding/Chinese-Word-Vectors (Mixed-large, Word)
 WORD_VEC = {
     "gossip": "glove.840B.300d.zip",
     "pol": "glove.840B.300d.zip",

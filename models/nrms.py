@@ -1,5 +1,4 @@
 """NRMS (EMNLP'19). 1단계.
-
 생략: 없음. 단어 임베딩은 words.pt (GloVe / Chinese Word Vectors) 로 초기화.
 """
 

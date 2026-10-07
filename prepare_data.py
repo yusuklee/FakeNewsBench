@@ -1,28 +1,5 @@
-"""전처리 (1회 실행). 모든 모델이 같은 산출물을 쓴다.
-
-  python prepare_data.py --dataset gossip        # gossip / pol / pheme / ced / mcfend / all
-
-입력  : data/{dataset}.csv  (없으면 GitHub release v0.1.0 에서 받아 저장)
-        컬럼 news_id, title, description, label(0 real / 1 fake), user_ids, user_times
-        pheme 만 category 컬럼(PHEME 사건 이름)이 더 있다
-산출  : data/processed/{dataset}/
-        news_emb.pt   {"title": [N+1,768], "description": [N+1,768]}  BERT CLS, row 0 = 패딩
-        tokens.pt     {"title_ids","title_mask":[N+1,32], "desc_ids","desc_mask":[N+1,128]}
-        category.pt     Long [N+1]  제목 TF-IDF K-means 군집 번호 (CSV 에 category 컬럼이 있으면 그 값)
-        subcategory.pt  Long [N+1]  카테고리 안에서 K-means 한 번 더
-        entity.pt       Long [N+1,5]  제목 NER 엔티티 번호
-        words.pt        {"title": [N+1,30], "description": [N+1,50]} 단어 번호, {"emb": [V+1,300]} 단어 벡터
-        sentiment.pt    Float [N+1]  제목 감성 점수 -1 ~ +1
-        pc.pt           Bool [N+1]  True = P_c 뉴스
-        train.json / val.json / test.json   [[ctx_ids], target_id, user_idx, target_time]
-        meta.json
-
-규칙
-  - description이 비어 있거나 title과 같으면 없는 것으로 처리
-  - 뉴스 분리: 뉴스 시각순 앞 20% = P_c (PRISM 분류기용), 뒤 80% = P_u. 인스턴스는 P_u 뉴스만
-  - 유저 시퀀스: 시간순, 중복 공유 유지
-  - 인스턴스: 직전 최대 max_len개 -> 다음 뉴스
-  - 분할: 인스턴스 무작위 8:1:1
+"""전처리 (1회). data/{dataset}.csv -> data/processed/{dataset}/ (임베딩·토큰·카테고리·엔티티·단어·감성·pc·인스턴스 json·meta)
+규칙: 뉴스 시각순 앞 20% = P_c(PRISM 분류기용), 뒤 80% 뉴스로 인스턴스(직전 5개 -> 다음 뉴스, 중복 유지) 생성, 무작위 8:1:1 분할
 """
 
 import argparse
@@ -150,8 +127,7 @@ def encode(texts, tokenizer, model, max_len, device, batch=128):
 
 
 def categorize(titles, tokenizer, given=None):
-    """제목 -> TF-IDF -> K-means 군집 번호 (Pref-FEND 방식). 서브카테고리 = 카테고리 안에서 한 번 더.
-    given(CSV 의 category 컬럼)이 있으면 카테고리는 K-means 대신 그 값을 쓴다.
+    """제목 TF-IDF -> K-means 카테고리 (given = CSV category 컬럼이 있으면 그 값), 카테고리 안에서 한 번 더 = 서브카테고리.
     -> (category Long [N+1], subcategory Long [N+1])  번호 1.., 0 = 패딩"""
     from sklearn.cluster import KMeans
     from sklearn.feature_extraction.text import TfidfVectorizer

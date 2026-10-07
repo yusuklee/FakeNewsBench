@@ -1,5 +1,4 @@
 """Rec4Mit (WWW'22). 1단계.
-
 평가 시 자체 분류기로 fake 후보 제외 (filter_fake).
 """
 
@@ -175,12 +174,7 @@ class Rec4Mit(BaseModel):
 
         target = torch.zeros_like(logits)
         target[:, 0] = 1
-        loss_p_row = F.binary_cross_entropy_with_logits(logits, target, reduction="none").mean(-1)  # [B]
-        if self.cfg.get("train_real_target_only", True):
-            w = (batch["target_label"] == 0).float()
-            loss_p = (loss_p_row * w).sum() / w.sum().clamp(min=1)
-        else:
-            loss_p = loss_p_row.mean()
+        loss_p = F.binary_cross_entropy_with_logits(logits, target)
 
         y_s = batch["ctx_label"]
         y_s, _ = self.left_pad(y_s.long(), batch["mask"])  # 라벨도 같은 순서로 이동

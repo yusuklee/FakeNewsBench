@@ -1,5 +1,4 @@
 """HDInt (KDD'24). 2단계: BERT fine-tune -> frozen HDInt.
-
 생략: 키워드 3개(title 임베딩 복제로 대체), 정치성향(전부 중립).
 """
 

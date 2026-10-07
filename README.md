@@ -122,7 +122,7 @@ best 체크포인트는 val HR@5 기준 (`select_metric`).
 
 | 모델 | 학습 | 원본 대비 |
 |---|---|---|
-| Rec4Mit | 1단계, 15 epoch | 메타 임베딩은 공통 BERT CLS를 필드별 정규화(`normalize_emb`). 정답이 real인 인스턴스만 예측 손실(`train_real_target_only`). 평가 시 자체 분류기로 fake 후보 제외(`filter_fake`). 적대 손실 1/BCE 가 가끔 폭발하는 건 원본 식(Eq 11) 그대로 |
+| Rec4Mit | 1단계, 15 epoch | 메타 임베딩은 공통 BERT CLS를 필드별 정규화(`normalize_emb`). 평가 시 자체 분류기로 fake 후보 제외(`filter_fake`). 적대 손실 1/BCE 가 가끔 폭발하는 건 원본 식(Eq 11) 그대로 |
 | HDInt | 2단계: BERT fine-tune 5 → frozen 15 | 키워드 없음 → title 임베딩 ×3 으로 대체. 정치성향 없음 → 전부 중립(1). 둘 다 TODO |
 | PRISM | 2단계: IB 분류기 30 → 디퓨전 120 | 분류기는 P_c(시간순 앞 20%) 뉴스로만 학습. 논문은 비율을 밝히지 않음 (2:8 은 우리가 정한 값). 입력 1536-d. 평가 노이즈 시드 고정 |
 | NRMS | 1단계, 15 epoch | Keras 원본을 PyTorch로 옮김. 헤드 수는 논문 값 (16×16) |
